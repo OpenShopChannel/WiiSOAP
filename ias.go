@@ -20,6 +20,7 @@ package main
 import (
 	"crypto/md5"
 	sha2562 "crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/RiiConnect24/wiino/golang"
@@ -29,6 +30,16 @@ import (
 	"math/rand"
 	"strconv"
 )
+
+var registerUser *sql.Stmt
+
+func iasInitialize() {
+	var err error
+	registerUser, err = db.Prepare(`INSERT INTO wiisoap.userbase (DeviceId, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
+	}
+}
 
 func iasHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
 	// All IAS-related functions should contain these keys.
@@ -138,12 +149,7 @@ func iasHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
 		doublyHashedDeviceToken := fmt.Sprintf("%x", sha2562.Sum256([]byte(md5DeviceToken)))
 
 		// Insert all of our obtained values to the database..
-		stmt, err := db.Prepare(`INSERT INTO wiisoap.userbase (DeviceId, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-		if err != nil {
-			log.Printf("error preparing statement: %v\n", err)
-			return e.ReturnError(7, reason, errors.New("failed to prepare statement"))
-		}
-		_, err = stmt.Exec(e.DeviceId(), doublyHashedDeviceToken, accountId, region, country, language, serialNo, deviceCode)
+		_, err = registerUser.Exec(e.DeviceId(), doublyHashedDeviceToken, accountId, region, country, language, serialNo, deviceCode)
 		if err != nil {
 			// It's okay if this isn't a MySQL error, as perhaps other issues have come in.
 			if driverErr, ok := err.(*mysql.MySQLError); ok {

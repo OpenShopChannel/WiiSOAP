@@ -96,3 +96,14 @@ type Transactions struct {
 	Date          string   `xml:"Date"`
 	Type          string   `xml:"Type"`
 }
+
+// Tickets represents the format to inform a console of available titles for its consumption.
+type Tickets struct {
+	XMLName xml.Name `xml:"Tickets"`
+	TicketId string `xml:"TicketId"`
+	TitleId string `xml:"TitleId"`
+	RevokeDate int `xml:"RevokeDate"`
+	Version int `xml:"Version"`
+	MigrateCount int `xml:"MigrateCount"`
+	MigrateLimit int `xml:"MigrateLimit"`
+}

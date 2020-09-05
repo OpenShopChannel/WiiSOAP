@@ -26,6 +26,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -64,6 +65,13 @@ func main() {
 	defer db.Close()
 	err = db.Ping()
 	checkError(err)
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
+	// Initialize handlers.
+	ecsInitialize()
+	iasInitialize()
 
 	// Start the HTTP server.
 	fmt.Printf("Starting HTTP connection (%s)...\nNot using the usual port for HTTP?\nBe sure to use a proxy, otherwise the Wii can't connect!\n", CON.Address)

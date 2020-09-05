@@ -18,9 +18,23 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/antchfx/xmlquery"
+	"log"
 )
+
+var ownedTitles *sql.Stmt
+
+func ecsInitialize() {
+	var err error
+	ownedTitles, err = db.Prepare(`SELECT o.ticket_id, o.title_id, s.version, o.revocation_date
+		FROM owned_titles o JOIN shop_titles s
+		WHERE o.title_id = s.title_id AND o.account_id = ?`)
+	if err != nil {
+		log.Fatalf("ecs initialize: error preparing statement: %v\n", err)
+	}
+}
 
 func ecsHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
 	// All actions below are for ECS-related functions.
@@ -48,8 +62,42 @@ func ecsHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
 		break
 
 	case "ListETickets":
-		// that's all you've got for me? ;3
+		fmt.Println("The request is valid! Responding...")
+		rows, err := ownedTitles.Query("todo, sorry")
+		if err != nil {
+			return e.ReturnError(2, "that's all you've got for me? ;3", err)
+		}
 
+		// Add all available titles for this account.
+		defer rows.Close()
+		for rows.Next() {
+			var ticketId string
+			var titleId string
+			var version int
+			var revocationDate int
+			err = rows.Scan(&ticketId, &titleId, &version, &revocationDate)
+			if err != nil {
+				return e.ReturnError(2, "that's all you've got for me? ;3", err)
+			}
+
+			e.AddCustomType(Tickets{
+				TicketId: ticketId,
+				TitleId: titleId,
+				Version: version,
+				RevokeDate: revocationDate,
+
+				// We do not support migration.
+				MigrateCount: 0,
+				MigrateLimit: 0,
+			})
+		}
+
+		e.AddKVNode("ForceSyncTime", "0")
+		e.AddKVNode("ExtTicketTime", e.Timestamp())
+		e.AddKVNode("SyncTime", e.Timestamp())
+		break
+
+	case "GetETickets":
 		fmt.Println("The request is valid! Responding...")
 		e.AddKVNode("ForceSyncTime", "0")
 		e.AddKVNode("ExtTicketTime", e.Timestamp())
