@@ -19,12 +19,11 @@ package main
 
 import (
 	"crypto/md5"
-	sha2562 "crypto/sha256"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/RiiConnect24/wiino/golang"
-	"github.com/antchfx/xmlquery"
+	wiino "github.com/RiiConnect24/wiino/golang"
 	"github.com/go-sql-driver/mysql"
 	"log"
 	"math/rand"
@@ -41,145 +40,124 @@ func iasInitialize() {
 	}
 }
 
-func iasHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
-	// All IAS-related functions should contain these keys.
-	region, err := getKey(doc, "Region")
+func checkRegistration(e *Envelope) {
+	serialNo, err := getKey(e.doc, "SerialNumber")
 	if err != nil {
-		return e.ReturnError(5, "not good enough for me. ;3", err)
-	}
-	country, err := getKey(doc, "Country")
-	if err != nil {
-		return e.ReturnError(5, "not good enough for me. ;3", err)
-	}
-	language, err := getKey(doc, "Language")
-	if err != nil {
-		return e.ReturnError(5, "not good enough for me. ;3", err)
+		e.Error(5, "not good enough for me. ;3", err)
+		return
 	}
 
-	// All actions below are for IAS-related functions.
-	switch e.Action() {
-	// TODO: Make the case functions cleaner. (e.g. Should the response be a variable?)
-	// TODO: Update the responses so that they query the SQL Database for the proper information (e.g. Device Code, Token, etc).
+	e.AddKVNode("OriginalSerialNumber", serialNo)
+	e.AddKVNode("DeviceStatus", "R")
+}
 
-	case "CheckRegistration":
-		serialNo, err := getKey(doc, "SerialNumber")
-		if err != nil {
-			return e.ReturnError(5, "not good enough for me. ;3", err)
-		}
+func getChallenge(e *Envelope) {
+	// The official Wii Shop Channel requests a Challenge from the server, and promptly disregards it.
+	// (Sometimes, it may not request a challenge at all.) No attempt is made to validate the response.
+	// It then uses another hard-coded value in place of this returned value entirely in any situation.
+	// For this reason, we consider it irrelevant.
+	e.AddKVNode("Challenge", SharedChallenge)
 
-		fmt.Println("The request is valid! Responding...")
-		e.AddKVNode("OriginalSerialNumber", serialNo)
-		e.AddKVNode("DeviceStatus", "R")
-		break
+}
 
-	case "GetChallenge":
-		fmt.Println("The request is valid! Responding...")
-		// The official Wii Shop Channel requests a Challenge from the server, and promptly disregards it.
-		// (Sometimes, it may not request a challenge at all.) No attempt is made to validate the response.
-		// It then uses another hard-coded value in place of this returned value entirely in any situation.
-		// For this reason, we consider it irrelevant.
-		e.AddKVNode("Challenge", SharedChallenge)
-		break
+func getRegistrationInfo(e *Envelope) {
+	reason := "how dirty. ;3"
+	accountId, err := getKey(e.doc, "AccountId")
+	if err != nil {
+		e.Error(7, reason, err)
+	}
 
-	case "GetRegistrationInfo":
-		reason := "how dirty. ;3"
-		accountId, err := getKey(doc, "AccountId")
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
+	deviceCode, err := getKey(e.doc, "DeviceCode")
+	if err != nil {
+		e.Error(7, reason, err)
+	}
 
-		deviceCode, err := getKey(doc, "DeviceCode")
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
+	e.AddKVNode("AccountId", accountId)
+	e.AddKVNode("DeviceToken", "00000000")
+	e.AddKVNode("DeviceTokenExpired", "false")
+	e.AddKVNode("Country", e.Country())
+	e.AddKVNode("ExtAccountId", "")
+	e.AddKVNode("DeviceCode", deviceCode)
+	e.AddKVNode("DeviceStatus", "R")
+	// This _must_ be POINTS.
+	e.AddKVNode("Currency", "POINTS")
+}
 
-		fmt.Println("The request is valid! Responding...")
-		e.AddKVNode("AccountId", accountId)
-		e.AddKVNode("DeviceToken", "00000000")
-		e.AddKVNode("DeviceTokenExpired", "false")
-		e.AddKVNode("Country", country)
-		e.AddKVNode("ExtAccountId", "")
-		e.AddKVNode("DeviceCode", deviceCode)
-		e.AddKVNode("DeviceStatus", "R")
-		// This _must_ be POINTS.
-		e.AddKVNode("Currency", "POINTS")
-		break
+func register(e *Envelope) {
+	reason := "disgustingly invalid. ;3"
+	deviceCode, err := getKey(e.doc, "DeviceCode")
+	if err != nil {
+		e.Error(7, reason, err)
+		return
+	}
 
-	case "Register":
-		reason := "disgustingly invalid. ;3"
-		deviceCode, err := getKey(doc, "DeviceCode")
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
+	registerRegion, err := getKey(e.doc, "RegisterRegion")
+	if err != nil {
+		e.Error(7, reason, err)
+		return
+	}
+	if registerRegion != e.Region() {
+		e.Error(7, reason, errors.New("region does not match registration region"))
+		return
+	}
 
-		registerRegion, err := getKey(doc, "RegisterRegion")
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
-		if registerRegion != region {
-			return e.ReturnError(7, reason, errors.New("region does not match registration region"))
-		}
+	serialNo, err := getKey(e.doc, "SerialNumber")
+	if err != nil {
+		e.Error(7, reason, err)
+		return
+	}
 
-		serialNo, err := getKey(doc, "SerialNumber")
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
+	// Validate given friend code.
+	userId, err := strconv.ParseUint(deviceCode, 10, 64)
+	if err != nil {
+		e.Error(7, reason, err)
+		return
+	}
+	if wiino.NWC24CheckUserID(userId) != 0 {
+		e.Error(7, reason, err)
+		return
+	}
 
-		// Validate given friend code.
-		userId, err := strconv.ParseUint(deviceCode, 10, 64)
-		if err != nil {
-			return e.ReturnError(7, reason, err)
-		}
-		if wiino.NWC24CheckUserID(userId) != 0 {
-			return e.ReturnError(7, reason, err)
-		}
+	// Generate a random 9-digit number, padding zeros as necessary.
+	accountId := fmt.Sprintf("%9d", rand.Intn(999999999))
 
-		// Generate a random 9-digit number, padding zeros as necessary.
-		accountId := fmt.Sprintf("%9d", rand.Intn(999999999))
+	// This is where it gets hairy.
+	// Generate a device token, 21 characters...
+	deviceToken := RandString(21)
+	// ...and then its md5, because the Wii sends this...
+	md5DeviceToken := fmt.Sprintf("%x", md5.Sum([]byte(deviceToken)))
+	// ...and then the sha256 of that md5.
+	// We'll store this in our database, as storing the md5 itself is effectively the token.
+	// It would not be good for security to directly store the token either.
+	// This is the hash of the md5 represented as a string, not individual byte values.
+	doublyHashedDeviceToken := fmt.Sprintf("%x", sha256.Sum256([]byte(md5DeviceToken)))
 
-		// This is where it gets hairy.
-		// Generate a device token, 21 characters...
-		deviceToken := RandString(21)
-		// ...and then its md5, because the Wii sends this...
-		md5DeviceToken := fmt.Sprintf("%x", md5.Sum([]byte(deviceToken)))
-		// ...and then the sha256 of that md5.
-		// We'll store this in our database, as storing the md5 itself is effectively the token.
-		// It would not be good for security to directly store the token either.
-		// This is the hash of the md5 represented as a string, not individual byte values.
-		doublyHashedDeviceToken := fmt.Sprintf("%x", sha2562.Sum256([]byte(md5DeviceToken)))
-
-		// Insert all of our obtained values to the database..
-		_, err = registerUser.Exec(e.DeviceId(), doublyHashedDeviceToken, accountId, region, country, language, serialNo, deviceCode)
-		if err != nil {
-			// It's okay if this isn't a MySQL error, as perhaps other issues have come in.
-			if driverErr, ok := err.(*mysql.MySQLError); ok {
-				if driverErr.Number == 1062 {
-					return e.ReturnError(7, reason, errors.New("user already exists"))
-				}
+	// Insert all of our obtained values to the database..
+	_, err = registerUser.Exec(e.DeviceId(), doublyHashedDeviceToken, accountId, e.Region(), e.Country(), e.Language(), serialNo, deviceCode)
+	if err != nil {
+		// It's okay if this isn't a MySQL error, as perhaps other issues have come in.
+		if driverErr, ok := err.(*mysql.MySQLError); ok {
+			if driverErr.Number == 1062 {
+				e.Error(7, reason, errors.New("user already exists"))
+				return
 			}
-			log.Printf("error executing statement: %v\n", err)
-			return e.ReturnError(7, reason, errors.New("failed to execute db operation"))
 		}
-
-		fmt.Println("The request is valid! Responding...")
-		e.AddKVNode("AccountId", accountId)
-		e.AddKVNode("DeviceToken", deviceToken)
-		e.AddKVNode("DeviceTokenExpired", "false")
-		e.AddKVNode("Country", country)
-		// Optionally, one can send back DeviceCode and ExtAccountId to update on device.
-		// We send these back as-is regardless.
-		e.AddKVNode("ExtAccountId", "")
-		e.AddKVNode("DeviceCode", deviceCode)
-		break
-
-	case "Unregister":
-		// how abnormal... ;3
-		fmt.Println("The request is valid! Responding...")
-		break
-
-	default:
-		return false, "WiiSOAP can't handle this. Try again later or actually use a Wii instead of a computer."
+		log.Printf("error executing statement: %v\n", err)
+		e.Error(7, reason, errors.New("failed to execute db operation"))
+		return
 	}
 
-	return e.ReturnSuccess()
+	fmt.Println("The request is valid! Responding...")
+	e.AddKVNode("AccountId", accountId)
+	e.AddKVNode("DeviceToken", deviceToken)
+	e.AddKVNode("DeviceTokenExpired", "false")
+	e.AddKVNode("Country", e.Country())
+	// Optionally, one can send back DeviceCode and ExtAccountId to update on device.
+	// We send these back as-is regardless.
+	e.AddKVNode("ExtAccountId", "")
+	e.AddKVNode("DeviceCode", deviceCode)
+}
+
+func unregister(e *Envelope) {
+	// how abnormal... ;3
 }

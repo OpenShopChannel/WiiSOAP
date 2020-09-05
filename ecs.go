@@ -20,7 +20,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/antchfx/xmlquery"
 	"log"
 )
 
@@ -36,96 +35,79 @@ func ecsInitialize() {
 	}
 }
 
-func ecsHandler(e Envelope, doc *xmlquery.Node) (bool, string) {
-	// All actions below are for ECS-related functions.
-	switch e.Action() {
-	// TODO: Make the case functions cleaner. (e.g. Should the response be a variable?)
-	// TODO: Update the responses so that they query the SQL Database for the proper information (e.g. Device Code, Token, etc).
+func checkDeviceStatus(e *Envelope) {
+	// You need to POST some SOAP from WSC if you wanna get some, honey. ;3
+	e.AddCustomType(Balance{
+		Amount:   2018,
+		Currency: "POINTS",
+	})
+	e.AddKVNode("ForceSyncTime", "0")
+	e.AddKVNode("ExtTicketTime", e.Timestamp())
+	e.AddKVNode("SyncTime", e.Timestamp())
+}
 
-	case "CheckDeviceStatus":
-		//You need to POST some SOAP from WSC if you wanna get some, honey. ;3
+func notifyETicketsSynced(e *Envelope) {
+	// This is a disgusting request, but 20 dollars is 20 dollars. ;3
+}
 
-		fmt.Println("The request is valid! Responding...")
-		e.AddCustomType(Balance{
-			Amount:   2018,
-			Currency: "POINTS",
-		})
-		e.AddKVNode("ForceSyncTime", "0")
-		e.AddKVNode("ExtTicketTime", e.Timestamp())
-		e.AddKVNode("SyncTime", e.Timestamp())
-		break
-
-	case "NotifyETicketsSynced":
-		// This is a disgusting request, but 20 dollars is 20 dollars. ;3
-
-		fmt.Println("The request is valid! Responding...")
-		break
-
-	case "ListETickets":
-		fmt.Println("The request is valid! Responding...")
-		rows, err := ownedTitles.Query("todo, sorry")
-		if err != nil {
-			return e.ReturnError(2, "that's all you've got for me? ;3", err)
-		}
-
-		// Add all available titles for this account.
-		defer rows.Close()
-		for rows.Next() {
-			var ticketId string
-			var titleId string
-			var version int
-			var revocationDate int
-			err = rows.Scan(&ticketId, &titleId, &version, &revocationDate)
-			if err != nil {
-				return e.ReturnError(2, "that's all you've got for me? ;3", err)
-			}
-
-			e.AddCustomType(Tickets{
-				TicketId: ticketId,
-				TitleId: titleId,
-				Version: version,
-				RevokeDate: revocationDate,
-
-				// We do not support migration.
-				MigrateCount: 0,
-				MigrateLimit: 0,
-			})
-		}
-
-		e.AddKVNode("ForceSyncTime", "0")
-		e.AddKVNode("ExtTicketTime", e.Timestamp())
-		e.AddKVNode("SyncTime", e.Timestamp())
-		break
-
-	case "GetETickets":
-		fmt.Println("The request is valid! Responding...")
-		e.AddKVNode("ForceSyncTime", "0")
-		e.AddKVNode("ExtTicketTime", e.Timestamp())
-		e.AddKVNode("SyncTime", e.Timestamp())
-		break
-
-	case "PurchaseTitle":
-		// If you wanna fun time, it's gonna cost ya extra sweetie... ;3
-
-		fmt.Println("The request is valid! Responding...")
-		e.AddCustomType(Balance{
-			Amount:   2018,
-			Currency: "POINTS",
-		})
-		e.AddCustomType(Transactions{
-			TransactionId: "00000000",
-			Date:          e.Timestamp(),
-			Type:          "PURCHGAME",
-		})
-		e.AddKVNode("SyncTime", e.Timestamp())
-		e.AddKVNode("Certs", "00000000")
-		e.AddKVNode("TitleId", "00000000")
-		e.AddKVNode("ETickets", "00000000")
-		break
-
-	default:
-		return false, "WiiSOAP can't handle this. Try again later or actually use a Wii instead of a computer."
+func listETickets(e *Envelope) {
+	fmt.Println("The request is valid! Responding...")
+	rows, err := ownedTitles.Query("todo, sorry")
+	if err != nil {
+		e.Error(2, "that's all you've got for me? ;3", err)
+		return
 	}
 
-	return e.ReturnSuccess()
+	// Add all available titles for this account.
+	defer rows.Close()
+	for rows.Next() {
+		var ticketId string
+		var titleId string
+		var version int
+		var revocationDate int
+		err = rows.Scan(&ticketId, &titleId, &version, &revocationDate)
+		if err != nil {
+			e.Error(2, "that's all you've got for me? ;3", err)
+			return
+		}
+
+		e.AddCustomType(Tickets{
+			TicketId:   ticketId,
+			TitleId:    titleId,
+			Version:    version,
+			RevokeDate: revocationDate,
+
+			// We do not support migration.
+			MigrateCount: 0,
+			MigrateLimit: 0,
+		})
+	}
+
+	e.AddKVNode("ForceSyncTime", "0")
+	e.AddKVNode("ExtTicketTime", e.Timestamp())
+	e.AddKVNode("SyncTime", e.Timestamp())
+}
+
+func getETickets(e *Envelope) {
+	fmt.Println("The request is valid! Responding...")
+	e.AddKVNode("ForceSyncTime", "0")
+	e.AddKVNode("ExtTicketTime", e.Timestamp())
+	e.AddKVNode("SyncTime", e.Timestamp())
+}
+
+func purchaseTitle(e *Envelope) {
+	// If you wanna fun time, it's gonna cost ya extra sweetie... ;3
+	e.AddCustomType(Balance{
+		Amount:   2018,
+		Currency: "POINTS",
+	})
+	e.AddCustomType(Transactions{
+		TransactionId: "00000000",
+		Date:          e.Timestamp(),
+		Type:          "PURCHGAME",
+	})
+	e.AddKVNode("SyncTime", e.Timestamp())
+	e.AddKVNode("Certs", "00000000")
+	e.AddKVNode("TitleId", "00000000")
+	e.AddKVNode("ETickets", "00000000")
 }

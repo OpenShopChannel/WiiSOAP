@@ -25,6 +25,7 @@ import (
 	"io"
 	"math/rand"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -46,11 +47,18 @@ func parseAction(original string) (string, string) {
 }
 
 // NewEnvelope returns a new Envelope with proper attributes initialized.
-func NewEnvelope(service string, action string) Envelope {
+func NewEnvelope(service string, action string, body []byte) (*Envelope, error) {
 	// Get a sexy new timestamp to use.
 	timestampNano := fmt.Sprint(time.Now().UTC().UnixNano())[0:13]
 
-	return Envelope{
+	// Tidy up parsed document for easier usage going forward.
+	doc, err := normalise(service, action, strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+
+	// Return an envelope with properly set defaults to respond with.
+	e := Envelope{
 		SOAPEnv: "http://schemas.xmlsoap.org/soap/envelope/",
 		XSD:     "http://www.w3.org/2001/XMLSchema",
 		XSI:     "http://www.w3.org/2001/XMLSchema-instance",
@@ -62,13 +70,16 @@ func NewEnvelope(service string, action string) Envelope {
 				TimeStamp: timestampNano,
 			},
 		},
-		action: action,
+		doc: doc,
 	}
-}
 
-// Action returns the action for this service.
-func (e *Envelope) Action() string {
-	return e.action
+	// Obtain common request values.
+	err = e.ObtainCommon()
+	if err != nil {
+		return nil, err
+	}
+
+	return &e, nil
 }
 
 // Timestamp returns a shared timestamp for this request.
@@ -81,9 +92,25 @@ func (e *Envelope) DeviceId() string {
 	return e.Body.Response.DeviceId
 }
 
+// Region returns the region for this request. It should be only used in IAS-related requests.
+func (e *Envelope) Region() string {
+	return e.region
+}
+
+// Country returns the region for this request. It should be only used in IAS-related requests.
+func (e *Envelope) Country() string {
+	return e.country
+}
+
+// Language returns the region for this request. It should be only used in IAS-related requests.
+func (e *Envelope) Language() string {
+	return e.language
+}
+
 // ObtainCommon interprets a given node, and updates the envelope with common key values.
-func (e *Envelope) ObtainCommon(doc *xmlquery.Node) error {
+func (e *Envelope) ObtainCommon() error {
 	var err error
+	doc := e.doc
 
 	// These fields are common across all requests.
 	e.Body.Response.Version, err = getKey(doc, "Version")
@@ -95,6 +122,20 @@ func (e *Envelope) ObtainCommon(doc *xmlquery.Node) error {
 		return err
 	}
 	e.Body.Response.MessageId, err = getKey(doc, "MessageId")
+	if err != nil {
+		return err
+	}
+
+	// These are as well, but we do not need to send them back in our response.
+	e.region, err = getKey(doc, "Region")
+	if err != nil {
+		return err
+	}
+	e.country, err = getKey(doc, "Country")
+	if err != nil {
+		return err
+	}
+	e.language, err = getKey(doc, "Language")
 	if err != nil {
 		return err
 	}
@@ -117,7 +158,10 @@ func (e *Envelope) AddCustomType(customType interface{}) {
 
 // becomeXML marshals the Envelope object, returning the intended boolean state on success.
 // ..there has to be a better way to do this, TODO.
-func (e *Envelope) becomeXML(intendedStatus bool) (bool, string) {
+func (e *Envelope) becomeXML() (bool, string) {
+	// Non-zero error codes indicate a failure.
+	intendedStatus := e.Body.Response.ErrorCode == 0
+
 	contents, err := xml.Marshal(e)
 	if err != nil {
 		return false, "an error occurred marshalling XML: " + err.Error()
@@ -128,16 +172,8 @@ func (e *Envelope) becomeXML(intendedStatus bool) (bool, string) {
 	}
 }
 
-// ReturnSuccess returns a standard SOAP response with a positive error code.
-func (e *Envelope) ReturnSuccess() (bool, string) {
-	// Ensure the error code is 0.
-	e.Body.Response.ErrorCode = 0
-
-	return e.becomeXML(true)
-}
-
-// ReturnError returns a standard SOAP response with an error code.
-func (e *Envelope) ReturnError(errorCode int, reason string, err error) (bool, string) {
+// Error sets the necessary keys for this SOAP response to reflect the given error.
+func (e *Envelope) Error(errorCode int, reason string, err error) {
 	e.Body.Response.ErrorCode = errorCode
 
 	// Ensure all additional fields are empty to avoid conflict.
@@ -145,8 +181,6 @@ func (e *Envelope) ReturnError(errorCode int, reason string, err error) (bool, s
 
 	e.AddKVNode("UserReason", reason)
 	e.AddKVNode("ServerReason", err.Error())
-
-	return e.becomeXML(false)
 }
 
 // normalise parses a document, returning a document with only the request type's child nodes, stripped of prefix.

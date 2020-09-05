@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -76,79 +75,26 @@ func main() {
 	// Start the HTTP server.
 	fmt.Printf("Starting HTTP connection (%s)...\nNot using the usual port for HTTP?\nBe sure to use a proxy, otherwise the Wii can't connect!\n", CON.Address)
 
-	// These following endpoints don't have to match what the official WSC have.
-	// However, semantically, it feels proper.
-	http.HandleFunc("/ecs/services/ECommerceSOAP", commonHandler)
-	http.HandleFunc("/ias/services/IdentityAuthenticationSOAP", commonHandler)
-	log.Fatal(http.ListenAndServe(CON.Address, nil))
+	r := NewRoute()
+	ecs := r.HandleGroup("ecs")
+	{
+		ecs.Authenticated("CheckDeviceStatus", checkDeviceStatus)
+		ecs.Authenticated("NotifyETicketsSynced", notifyETicketsSynced)
+		ecs.Authenticated("ListETickets", listETickets)
+		ecs.Authenticated("GetETickets", getETickets)
+		ecs.Authenticated("PurchaseTitle", purchaseTitle)
+
+	}
+
+	ias := r.HandleGroup("ias")
+	{
+		ias.Unauthenticated("CheckRegistration", checkRegistration)
+		ias.Unauthenticated("GetChallenge", getChallenge)
+		ias.Authenticated("GetRegistrationInfo", getRegistrationInfo)
+		ias.Unauthenticated("Register", register)
+		ias.Authenticated("Unregister", unregister)
+	}
+	log.Fatal(http.ListenAndServe(CON.Address, r.Handle()))
 
 	// From here on out, all special cool things should go into their respective handler function.
-}
-
-func commonHandler(w http.ResponseWriter, r *http.Request) {
-	// Figure out the action to handle via header.
-	service, action := parseAction(r.Header.Get("SOAPAction"))
-	if service == "" || action == "" {
-		printError(w, "WiiSOAP can't handle this. Try again later or actually use a Wii instead of a computer.")
-		return
-	}
-
-	// Verify this is a service type we know.
-	switch service {
-	case "ecs":
-	case "ias":
-		break
-	default:
-		printError(w, "Unsupported service type...")
-		return
-	}
-
-	fmt.Println("[!] Incoming " + strings.ToUpper(service) + " request - handling for " + action)
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		printError(w, "Error reading request body...")
-		return
-	}
-
-	// Tidy up parsed document for easier usage going forward.
-	doc, err := normalise(service, action, strings.NewReader(string(body)))
-	if err != nil {
-		printError(w, "Error interpreting request body: "+err.Error())
-		return
-	}
-
-	fmt.Println("Received:", string(body))
-
-	// Insert the current action being performed.
-	envelope := NewEnvelope(service, action)
-
-	// Extract shared values from this request.
-	err = envelope.ObtainCommon(doc)
-	if err != nil {
-		printError(w, "Error handling request body: "+err.Error())
-		return
-	}
-
-	var successful bool
-	var result string
-	if service == "ias" {
-		successful, result = iasHandler(envelope, doc)
-	} else if service == "ecs" {
-		successful, result = ecsHandler(envelope, doc)
-	}
-
-	if successful {
-		// Write returned with proper Content-Type
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		w.Write([]byte(result))
-	} else {
-		printError(w, result)
-	}
-
-	fmt.Println("[!] End of " + strings.ToUpper(service) + " Request.\n")
-}
-
-func printError(w http.ResponseWriter, reason string) {
-	http.Error(w, reason, http.StatusInternalServerError)
-	fmt.Println("Failed to handle request: " + reason)
 }

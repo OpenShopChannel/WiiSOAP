@@ -17,7 +17,10 @@
 
 package main
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"github.com/antchfx/xmlquery"
+)
 
 /////////////////////
 // SOAP STRUCTURES //
@@ -47,7 +50,12 @@ type Envelope struct {
 	Body Body
 
 	// Used for internal state tracking.
-	action string
+	doc *xmlquery.Node
+
+	// Common IAS values.
+	region   string
+	country  string
+	language string
 }
 
 // Body represents the nested soapenv:Body element as a child on the root element,
@@ -86,7 +94,7 @@ type KVField struct {
 type Balance struct {
 	XMLName  xml.Name `xml:"Balance"`
 	Amount   int      `xml:"Amount"`
-	Currency string   `xml"Currency"`
+	Currency string   `xml:"Currency"`
 }
 
 // Transactions represents a common XML structure.
@@ -99,11 +107,11 @@ type Transactions struct {
 
 // Tickets represents the format to inform a console of available titles for its consumption.
 type Tickets struct {
-	XMLName xml.Name `xml:"Tickets"`
-	TicketId string `xml:"TicketId"`
-	TitleId string `xml:"TitleId"`
-	RevokeDate int `xml:"RevokeDate"`
-	Version int `xml:"Version"`
-	MigrateCount int `xml:"MigrateCount"`
-	MigrateLimit int `xml:"MigrateLimit"`
+	XMLName      xml.Name `xml:"Tickets"`
+	TicketId     string   `xml:"TicketId"`
+	TitleId      string   `xml:"TitleId"`
+	RevokeDate   int      `xml:"RevokeDate"`
+	Version      int      `xml:"Version"`
+	MigrateCount int      `xml:"MigrateCount"`
+	MigrateLimit int      `xml:"MigrateLimit"`
 }
