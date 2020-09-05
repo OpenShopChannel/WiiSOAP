@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -115,9 +117,15 @@ func (route *Route) Handle() http.Handler {
 			return
 		}
 
-		// IAS-specific actions can have separate values available.
-		// TODO: AUTH
-		// TODO: QUITE A LOT
+		// Check for authentication.
+		if action.NeedsAuthentication {
+			success, err := checkAuthentication(e)
+			// Catch-all in case of invalid formatting or true invalidity.
+			if !success || (err != nil) {
+				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
+				return
+			}
+		}
 
 		// Call this action.
 		action.Callback(e)
@@ -133,6 +141,68 @@ func (route *Route) Handle() http.Handler {
 		}
 		w.Write([]byte(contents))
 	})
+}
+
+var routeVerify *sql.Stmt
+
+func routeInitialize() {
+	var err error
+	// What we select does not matter.
+	routeVerify, err = db.Prepare(`SELECT DeviceId FROM userbase WHERE DeviceToken=? AND AccountId=? AND DeviceId=?`)
+	if err != nil {
+		log.Fatalf("route initialize: error preparing statement: %v\n", err)
+	}
+}
+
+// checkAuthentication validates various factors from a given request requiring authentication.
+func checkAuthentication(e *Envelope) (bool, error) {
+	// Get necessary authentication identifiers.
+	deviceToken, err := getKey(e.doc, "DeviceToken")
+	if err != nil {
+		return false, err
+	}
+	accountId, err := getKey(e.doc, "AccountId")
+	if err != nil {
+		return false, err
+	}
+
+	hash := validateTokenFormat(deviceToken)
+	if hash == "" {
+		return false, nil
+	}
+
+	// The Wii sends us a MD5 of its given token. We store a SHA-256 hash of that.
+	hashedDeviceToken := fmt.Sprintf("%x", sha256.Sum256([]byte(hash)))
+
+	// Check using various input given.
+	row := routeVerify.QueryRow(hashedDeviceToken, accountId, e.DeviceId())
+
+	var throwaway string
+	err = row.Scan(&throwaway)
+
+	if err == sql.ErrNoRows {
+		return false, err
+	} else if err != nil {
+		// We shouldn't encounter other errors.
+		log.Printf("error occurred while checking authentication: %v\n", err)
+		return false, err
+	} else {
+		return true, nil
+	}
+}
+
+// validateTokenFormat confirms the prefix and size of tokens,
+// in a format such as WT-5d41402abc4b2a76b9719d911017c592.
+// It returns an empty string on failure.
+func validateTokenFormat(token string) string {
+	success := len(token) == 35 && token[:3] == "WT-"
+
+	if success {
+		// Strips the WT- prefix off.
+		return token[3:35]
+	} else {
+		return ""
+	}
 }
 
 func printError(w http.ResponseWriter, reason string) {

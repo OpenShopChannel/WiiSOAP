@@ -34,7 +34,7 @@ var registerUser *sql.Stmt
 
 func iasInitialize() {
 	var err error
-	registerUser, err = db.Prepare(`INSERT INTO wiisoap.userbase (DeviceId, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+	registerUser, err = db.Prepare(`INSERT INTO userbase (DeviceId, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
 	}

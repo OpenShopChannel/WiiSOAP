@@ -71,6 +71,7 @@ func main() {
 	// Initialize handlers.
 	ecsInitialize()
 	iasInitialize()
+	routeInitialize()
 
 	// Start the HTTP server.
 	fmt.Printf("Starting HTTP connection (%s)...\nNot using the usual port for HTTP?\nBe sure to use a proxy, otherwise the Wii can't connect!\n", CON.Address)
