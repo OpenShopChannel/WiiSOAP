@@ -140,6 +140,7 @@ func (route *Route) Handle() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Write([]byte(contents))
+		fmt.Println("Response:", contents)
 	})
 }
 

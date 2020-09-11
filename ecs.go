@@ -52,7 +52,7 @@ func notifyETicketsSynced(e *Envelope) {
 
 func listETickets(e *Envelope) {
 	fmt.Println("The request is valid! Responding...")
-	rows, err := ownedTitles.Query("todo, sorry")
+	rows, err := ownedTitles.Query(e.AccountId())
 	if err != nil {
 		e.Error(2, "that's all you've got for me? ;3", err)
 		return

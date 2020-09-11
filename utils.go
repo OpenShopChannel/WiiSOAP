@@ -107,6 +107,18 @@ func (e *Envelope) Language() string {
 	return e.language
 }
 
+// AccountId returns the account ID for this request. It should be only used in authenticated requests.
+// If for whatever reason AccountId is not present, it will return an empty string. Please design in a way
+// so that this is not an issue.
+func (e *Envelope) AccountId() string {
+	accountId, err := getKey(e.doc, "AccountId")
+	if err != nil {
+		return ""
+	} else {
+		return accountId
+	}
+}
+
 // ObtainCommon interprets a given node, and updates the envelope with common key values.
 func (e *Envelope) ObtainCommon() error {
 	var err error
