@@ -32,6 +32,7 @@ type Config struct {
 	XMLName xml.Name `xml:"Config"`
 
 	Address string `xml:"Address"`
+	BaseURL string `xml:"BaseURL"`
 
 	SQLAddress string `xml:"SQLAddress"`
 	SQLUser    string `xml:"SQLUser"`

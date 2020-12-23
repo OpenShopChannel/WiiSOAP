@@ -35,6 +35,7 @@ const (
 )
 
 var db *sql.DB
+var baseUrl string
 
 // checkError makes error handling not as ugly and inefficient.
 func checkError(err error) {
@@ -68,6 +69,8 @@ func main() {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
+	baseUrl = CON.BaseURL
+
 	// Initialize handlers.
 	ecsInitialize()
 	iasInitialize()
@@ -84,7 +87,7 @@ func main() {
 		ecs.Authenticated("ListETickets", listETickets)
 		ecs.Authenticated("GetETickets", getETickets)
 		ecs.Authenticated("PurchaseTitle", purchaseTitle)
-
+		ecs.Unauthenticated("GetECConfig", getECConfig)
 	}
 
 	ias := r.HandleGroup("ias")

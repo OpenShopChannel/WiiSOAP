@@ -1,6 +1,13 @@
 <Config>
+    <!-- Web information -->
     <Address>127.0.0.1:8080</Address>
+    <!-- Used to configure various relative URLs.
+    For example, given a Base URL of example.com,
+    ias.example.com, ecs.example.com, etc. will be
+    returned as a part of configuration. -->
+    <BaseURL>example.com</BaseURL>
 
+    <!-- Database configuration -->
     <SQLAddress>127.0.0.1:3306</SQLAddress>
     <SQLUser>username</SQLUser>
     <SQLPass>password</SQLPass>

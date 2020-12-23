@@ -57,7 +57,6 @@ func getChallenge(e *Envelope) {
 	// It then uses another hard-coded value in place of this returned value entirely in any situation.
 	// For this reason, we consider it irrelevant.
 	e.AddKVNode("Challenge", SharedChallenge)
-
 }
 
 func getRegistrationInfo(e *Envelope) {

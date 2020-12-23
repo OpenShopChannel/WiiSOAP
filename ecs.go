@@ -36,7 +36,6 @@ func ecsInitialize() {
 }
 
 func checkDeviceStatus(e *Envelope) {
-	// You need to POST some SOAP from WSC if you wanna get some, honey. ;3
 	e.AddCustomType(Balance{
 		Amount:   2018,
 		Currency: "POINTS",
@@ -47,11 +46,10 @@ func checkDeviceStatus(e *Envelope) {
 }
 
 func notifyETicketsSynced(e *Envelope) {
-	// This is a disgusting request, but 20 dollars is 20 dollars. ;3
+	// TODO: Implement handling of synchronization timing
 }
 
 func listETickets(e *Envelope) {
-	fmt.Println("The request is valid! Responding...")
 	rows, err := ownedTitles.Query(e.AccountId())
 	if err != nil {
 		e.Error(2, "that's all you've got for me? ;3", err)
@@ -89,14 +87,12 @@ func listETickets(e *Envelope) {
 }
 
 func getETickets(e *Envelope) {
-	fmt.Println("The request is valid! Responding...")
 	e.AddKVNode("ForceSyncTime", "0")
 	e.AddKVNode("ExtTicketTime", e.Timestamp())
 	e.AddKVNode("SyncTime", e.Timestamp())
 }
 
 func purchaseTitle(e *Envelope) {
-	// If you wanna fun time, it's gonna cost ya extra sweetie... ;3
 	e.AddCustomType(Balance{
 		Amount:   2018,
 		Currency: "POINTS",
@@ -110,4 +106,24 @@ func purchaseTitle(e *Envelope) {
 	e.AddKVNode("Certs", "00000000")
 	e.AddKVNode("TitleId", "00000000")
 	e.AddKVNode("ETickets", "00000000")
+}
+
+// genServiceUrl returns a URL with the given service against a configured URL.
+// Given a baseUrl of example.com and genServiceUrl("ias", "IdentityAuthenticationSOAP"),
+// it would return http://ias.example.com/ias/services/ias/IdentityAuthenticationSOAP.
+func genServiceUrl(service string, path string) string {
+	return fmt.Sprintf("http://%s.%s/%s/services/%s", service, baseUrl, service, path)
+}
+
+func getECConfig(e *Envelope) {
+	contentUrl := fmt.Sprintf("http://ccs.%s/ccs/download", baseUrl)
+	e.AddKVNode("ContentPrefixURL", contentUrl)
+	e.AddKVNode("UncachedContentPrefixURL", contentUrl)
+	e.AddKVNode("SystemContentPrefixURL", contentUrl)
+	e.AddKVNode("SystemUncachedContentPrefixURL", contentUrl)
+
+	e.AddKVNode("EcsURL", genServiceUrl("ecs", "ECommerceSOAP"))
+	e.AddKVNode("IasURL", genServiceUrl("ias", "IdentityAuthenticationSOAP"))
+	e.AddKVNode("CasURL", genServiceUrl("cas", "CatalogingSOAP"))
+	e.AddKVNode("NusURL", genServiceUrl("nus", "NetUpdateSOAP"))
 }
