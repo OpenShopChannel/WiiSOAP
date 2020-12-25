@@ -30,10 +30,16 @@ import (
 )
 
 var registerUser *sql.Stmt
+var syncUser *sql.Stmt
 
 func iasInitialize() {
 	var err error
 	registerUser, err = db.Prepare(`INSERT INTO userbase (DeviceId, DeviceTokenUnhashed, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
+	}
+
+	syncUser, err = db.Prepare(`SELECT userbase.AccountId, userbase.DeviceCode, userbase.DeviceTokenUnhashed FROM userbase WHERE Language = ? AND Country = ? AND Region = ? AND DeviceId = ?`)
 	if err != nil {
 		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
 	}
@@ -59,26 +65,32 @@ func getChallenge(e *Envelope) {
 }
 
 func getRegistrationInfo(e *Envelope) {
-	reason := "how dirty. ;3"
-	accountId, err := getKey(e.doc, "AccountId")
-	if err != nil {
-		e.Error(7, reason, err)
-	}
+	// GetRegistrationInfo is SyncRegistration with authentication and an additional key.
+	syncRegistration(e)
 
-	deviceCode, err := getKey(e.doc, "DeviceCode")
+	// This _must_ be POINTS.
+	// It does not appear to be observed by any known client,
+	// but is sent by Nintendo in official requests.
+	e.AddKVNode("Currency", "POINTS")
+}
+
+func syncRegistration(e *Envelope) {
+	var accountId string
+	var deviceCode string
+	var deviceToken string
+
+	user := syncUser.QueryRow(e.Language(), e.Country(), e.Region(), e.DeviceId())
+	err := user.Scan(&accountId, &deviceCode, &deviceToken)
 	if err != nil {
-		e.Error(7, reason, err)
+		e.Error(7, "An error occurred querying the database.", err)
 	}
 
 	e.AddKVNode("AccountId", accountId)
-	e.AddKVNode("DeviceToken", "00000000")
+	e.AddKVNode("DeviceToken", deviceToken)
 	e.AddKVNode("DeviceTokenExpired", "false")
 	e.AddKVNode("Country", e.Country())
 	e.AddKVNode("ExtAccountId", "")
-	e.AddKVNode("DeviceCode", deviceCode)
 	e.AddKVNode("DeviceStatus", "R")
-	// This _must_ be POINTS.
-	e.AddKVNode("Currency", "POINTS")
 }
 
 func register(e *Envelope) {

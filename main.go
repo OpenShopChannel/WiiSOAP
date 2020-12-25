@@ -95,6 +95,7 @@ func main() {
 		ias.Unauthenticated("CheckRegistration", checkRegistration)
 		ias.Unauthenticated("GetChallenge", getChallenge)
 		ias.Authenticated("GetRegistrationInfo", getRegistrationInfo)
+		ias.Unauthenticated("SyncRegistration", syncRegistration)
 		ias.Unauthenticated("Register", register)
 		ias.Authenticated("Unregister", unregister)
 	}
