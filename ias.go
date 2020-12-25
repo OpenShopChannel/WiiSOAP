@@ -19,7 +19,6 @@ package main
 
 import (
 	"crypto/md5"
-	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -34,7 +33,7 @@ var registerUser *sql.Stmt
 
 func iasInitialize() {
 	var err error
-	registerUser, err = db.Prepare(`INSERT INTO userbase (DeviceId, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+	registerUser, err = db.Prepare(`INSERT INTO userbase (DeviceId, DeviceTokenUnhashed, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
 	}
@@ -120,19 +119,13 @@ func register(e *Envelope) {
 	// Generate a random 9-digit number, padding zeros as necessary.
 	accountId := fmt.Sprintf("%9d", rand.Intn(999999999))
 
-	// This is where it gets hairy.
 	// Generate a device token, 21 characters...
 	deviceToken := RandString(21)
-	// ...and then its md5, because the Wii sends this...
+	// ...and then its md5, because the Wii sends this for most requests.
 	md5DeviceToken := fmt.Sprintf("%x", md5.Sum([]byte(deviceToken)))
-	// ...and then the sha256 of that md5.
-	// We'll store this in our database, as storing the md5 itself is effectively the token.
-	// It would not be good for security to directly store the token either.
-	// This is the hash of the md5 represented as a string, not individual byte values.
-	doublyHashedDeviceToken := fmt.Sprintf("%x", sha256.Sum256([]byte(md5DeviceToken)))
 
 	// Insert all of our obtained values to the database..
-	_, err = registerUser.Exec(e.DeviceId(), doublyHashedDeviceToken, accountId, e.Region(), e.Country(), e.Language(), serialNo, deviceCode)
+	_, err = registerUser.Exec(e.DeviceId(), deviceToken, md5DeviceToken, accountId, e.Region(), e.Country(), e.Language(), serialNo, deviceCode)
 	if err != nil {
 		// It's okay if this isn't a MySQL error, as perhaps other issues have come in.
 		if driverErr, ok := err.(*mysql.MySQLError); ok {

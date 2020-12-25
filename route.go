@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -172,11 +171,8 @@ func checkAuthentication(e *Envelope) (bool, error) {
 		return false, nil
 	}
 
-	// The Wii sends us a MD5 of its given token. We store a SHA-256 hash of that.
-	hashedDeviceToken := fmt.Sprintf("%x", sha256.Sum256([]byte(hash)))
-
 	// Check using various input given.
-	row := routeVerify.QueryRow(hashedDeviceToken, accountId, e.DeviceId())
+	row := routeVerify.QueryRow(hash, accountId, e.DeviceId())
 
 	var throwaway string
 	err = row.Scan(&throwaway)

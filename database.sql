@@ -26,6 +26,21 @@ Follow and practice proper security practices before handling user data.
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `shop_titles`
+--
+
+DROP TABLE IF EXISTS `shop_titles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `shop_titles` (
+                               `title_id` varchar(16) NOT NULL,
+                               `version` int(11) NOT NULL,
+                               `description` mediumtext DEFAULT 'yada yada',
+                               PRIMARY KEY (`title_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `owned_titles`
 --
 
@@ -44,21 +59,6 @@ CREATE TABLE `owned_titles` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `shop_titles`
---
-
-DROP TABLE IF EXISTS `shop_titles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `shop_titles` (
-                               `title_id` varchar(16) NOT NULL,
-                               `version` int(11) NOT NULL,
-                               `description` mediumtext DEFAULT 'yada yada',
-                               PRIMARY KEY (`title_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `userbase`
 --
 
@@ -67,7 +67,8 @@ DROP TABLE IF EXISTS `userbase`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `userbase` (
                             `DeviceId` varchar(10) NOT NULL,
-                            `DeviceToken` varchar(64) NOT NULL COMMENT 'This token should be considered a secret, so after generation only the sha256sum of the md5 the Wii sends is inserted.',
+                            `DeviceTokenUnhashed` varchar(21) NOT NULL COMMENT 'Sadly, sometimes we must return the device token in plaintext.',
+                            `DeviceToken` varchar(32) NOT NULL COMMENT 'The MD5 of the device token is sent for most requests. We store it to avoid wasting compute time.',
                             `AccountId` varchar(9) NOT NULL,
                             `Region` varchar(3) NOT NULL,
                             `Country` varchar(2) NOT NULL,
