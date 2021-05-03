@@ -7,6 +7,13 @@ This is the SOAP Server Software. The other repository only has the communicatio
 
 # Changelog
 Versions on this software are based on goals. (e.g 0.2 works towards SQL support. 0.3 works towards NUS support, etc.)
+
+## 0.3.x Tanuki
+### 0.3.0
+- Migrates to using PostgreSQL
+- Add routes and XML niceties
+- Implement most routes
+
 ## 0.2.x Kawauso
 ### 0.2.6
 *This version of WiiSOAP Server was brought to you by Apfel. Thank you for your contribution.*
