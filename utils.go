@@ -25,6 +25,7 @@ import (
 	"io"
 	"math/rand"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -88,7 +89,7 @@ func (e *Envelope) Timestamp() string {
 }
 
 // DeviceId returns the Device ID for this request.
-func (e *Envelope) DeviceId() string {
+func (e *Envelope) DeviceId() int {
 	return e.Body.Response.DeviceId
 }
 
@@ -108,15 +109,15 @@ func (e *Envelope) Language() string {
 }
 
 // AccountId returns the account ID for this request. It should be only used in authenticated requests.
-// If for whatever reason AccountId is not present, it will return an empty string. Please design in a way
-// so that this is not an issue.
-func (e *Envelope) AccountId() string {
+// If for whatever reason AccountId is not present (such as in SyncRegistration),
+// it will return an error. Please design in a way so that this is not an issue.
+func (e *Envelope) AccountId() (int64, error) {
 	accountId, err := getKey(e.doc, "AccountId")
 	if err != nil {
-		return ""
-	} else {
-		return accountId
+		return 0, nil
 	}
+
+	return strconv.ParseInt(accountId, 10, 64)
 }
 
 // ObtainCommon interprets a given node, and updates the envelope with common key values.
@@ -129,7 +130,11 @@ func (e *Envelope) ObtainCommon() error {
 	if err != nil {
 		return err
 	}
-	e.Body.Response.DeviceId, err = getKey(doc, "DeviceId")
+	deviceIdString, err := getKey(doc, "DeviceId")
+	if err != nil {
+		return err
+	}
+	e.Body.Response.DeviceId, err = strconv.Atoi(deviceIdString)
 	if err != nil {
 		return err
 	}

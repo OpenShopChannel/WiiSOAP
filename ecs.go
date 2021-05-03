@@ -18,22 +18,15 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
 )
 
-var ownedTitles *sql.Stmt
-
-func ecsInitialize() {
-	var err error
-	ownedTitles, err = db.Prepare(`SELECT o.ticket_id, o.title_id, s.version, o.revocation_date
-		FROM owned_titles o JOIN shop_titles s
-		WHERE o.title_id = s.title_id AND o.account_id = ?`)
-	if err != nil {
-		log.Fatalf("ecs initialize: error preparing statement: %v\n", err)
-	}
-}
+const (
+	QueryOwnedTitles = `SELECT o.ticket_id, o.title_id, s.version, o.revocation_date
+		FROM owned_titles o
+		JOIN shop_titles s on s.title_id = o.title_id
+		AND o.account_id = $1`
+)
 
 func checkDeviceStatus(e *Envelope) {
 	e.AddCustomType(Balance{
@@ -50,7 +43,13 @@ func notifyETicketsSynced(e *Envelope) {
 }
 
 func listETickets(e *Envelope) {
-	rows, err := ownedTitles.Query(e.AccountId())
+	accountId, err := e.AccountId()
+	if err != nil {
+		e.Error(2, "that's all you've got for me? ;3", err)
+		return
+	}
+
+	rows, err := pool.Query(ctx, QueryOwnedTitles, accountId)
 	if err != nil {
 		e.Error(2, "that's all you've got for me? ;3", err)
 		return

@@ -75,7 +75,7 @@ type Response struct {
 
 	// These common fields are persistent across all requests.
 	Version            string `xml:"Version"`
-	DeviceId           string `xml:"DeviceId"`
+	DeviceId           int    `xml:"DeviceId"`
 	MessageId          string `xml:"MessageId"`
 	TimeStamp          string `xml:"TimeStamp"`
 	ErrorCode          int

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jackc/pgx/v4"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -143,16 +143,9 @@ func (route *Route) Handle() http.Handler {
 	})
 }
 
-var routeVerify *sql.Stmt
-
-func routeInitialize() {
-	var err error
-	// What we select does not matter.
-	routeVerify, err = db.Prepare(`SELECT DeviceId FROM userbase WHERE DeviceToken=? AND AccountId=? AND DeviceId=?`)
-	if err != nil {
-		log.Fatalf("route initialize: error preparing statement: %v\n", err)
-	}
-}
+const (
+	RouteVerifyStatement = `SELECT device_id FROM userbase WHERE device_token_hashed=$1 AND account_id=$2 AND device_id=$3`
+)
 
 // checkAuthentication validates various factors from a given request requiring authentication.
 func checkAuthentication(e *Envelope) (bool, error) {
@@ -161,7 +154,7 @@ func checkAuthentication(e *Envelope) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	accountId, err := getKey(e.doc, "AccountId")
+	accountId, err := e.AccountId()
 	if err != nil {
 		return false, err
 	}
@@ -172,12 +165,11 @@ func checkAuthentication(e *Envelope) (bool, error) {
 	}
 
 	// Check using various input given.
-	row := routeVerify.QueryRow(hash, accountId, e.DeviceId())
+	row := pool.QueryRow(ctx, RouteVerifyStatement, hash, accountId, e.DeviceId())
 
-	var throwaway string
+	var throwaway int
 	err = row.Scan(&throwaway)
-
-	if err == sql.ErrNoRows {
+	if err == pgx.ErrNoRows {
 		return false, err
 	} else if err != nil {
 		// We shouldn't encounter other errors.

@@ -19,31 +19,19 @@ package main
 
 import (
 	"crypto/md5"
-	"database/sql"
 	"errors"
 	"fmt"
 	wiino "github.com/RiiConnect24/wiino/golang"
-	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgconn"
 	"log"
 	"math/rand"
 	"strconv"
 )
 
-var registerUser *sql.Stmt
-var syncUser *sql.Stmt
-
-func iasInitialize() {
-	var err error
-	registerUser, err = db.Prepare(`INSERT INTO userbase (DeviceId, DeviceTokenUnhashed, DeviceToken, AccountId, Region, Country, Language, SerialNo, DeviceCode)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
-	}
-
-	syncUser, err = db.Prepare(`SELECT userbase.AccountId, userbase.DeviceCode, userbase.DeviceTokenUnhashed FROM userbase WHERE Language = ? AND Country = ? AND Region = ? AND DeviceId = ?`)
-	if err != nil {
-		log.Fatalf("ias initialize: error preparing statement: %v\n", err)
-	}
-}
+const (
+	PrepareUserStatement = `INSERT INTO userbase (device_id, device_token, device_token_hashed, account_id, region, country, language, serial_number, device_code)  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	SyncUserStatement    = `SELECT account_id, device_code, device_token FROM userbase WHERE language = $1 AND country = $2 AND region = $3 AND device_id = $4`
+)
 
 func checkRegistration(e *Envelope) {
 	serialNo, err := getKey(e.doc, "SerialNumber")
@@ -75,17 +63,17 @@ func getRegistrationInfo(e *Envelope) {
 }
 
 func syncRegistration(e *Envelope) {
-	var accountId string
-	var deviceCode string
+	var accountId int64
+	var deviceCode int
 	var deviceToken string
 
-	user := syncUser.QueryRow(e.Language(), e.Country(), e.Region(), e.DeviceId())
+	user := pool.QueryRow(ctx, SyncUserStatement, e.Language(), e.Country(), e.Region(), e.DeviceId())
 	err := user.Scan(&accountId, &deviceCode, &deviceToken)
 	if err != nil {
 		e.Error(7, "An error occurred querying the database.", err)
 	}
 
-	e.AddKVNode("AccountId", accountId)
+	e.AddKVNode("AccountId", strconv.FormatInt(accountId, 10))
 	e.AddKVNode("DeviceToken", deviceToken)
 	e.AddKVNode("DeviceTokenExpired", "false")
 	e.AddKVNode("Country", e.Country())
@@ -129,7 +117,7 @@ func register(e *Envelope) {
 	}
 
 	// Generate a random 9-digit number, padding zeros as necessary.
-	accountId := fmt.Sprintf("%9d", rand.Intn(999999999))
+	accountId := rand.Int63n(999999999)
 
 	// Generate a device token, 21 characters...
 	deviceToken := RandString(21)
@@ -137,11 +125,11 @@ func register(e *Envelope) {
 	md5DeviceToken := fmt.Sprintf("%x", md5.Sum([]byte(deviceToken)))
 
 	// Insert all of our obtained values to the database..
-	_, err = registerUser.Exec(e.DeviceId(), deviceToken, md5DeviceToken, accountId, e.Region(), e.Country(), e.Language(), serialNo, deviceCode)
+	_, err = pool.Exec(ctx, PrepareUserStatement, e.DeviceId(), deviceToken, md5DeviceToken, accountId, e.Region(), e.Country(), e.Language(), serialNo, deviceCode)
 	if err != nil {
-		// It's okay if this isn't a MySQL error, as perhaps other issues have come in.
-		if driverErr, ok := err.(*mysql.MySQLError); ok {
-			if driverErr.Number == 1062 {
+		// It's okay if this isn't a PostgreSQL error, as perhaps other issues have come in.
+		if driverErr, ok := err.(*pgconn.PgError); ok {
+			if driverErr.Code == "23505" {
 				e.Error(7, reason, errors.New("user already exists"))
 				return
 			}
@@ -152,7 +140,7 @@ func register(e *Envelope) {
 	}
 
 	fmt.Println("The request is valid! Responding...")
-	e.AddKVNode("AccountId", accountId)
+	e.AddKVNode("AccountId", strconv.FormatInt(accountId, 10))
 	e.AddKVNode("DeviceToken", deviceToken)
 	e.AddKVNode("DeviceTokenExpired", "false")
 	e.AddKVNode("Country", e.Country())

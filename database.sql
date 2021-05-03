@@ -59,7 +59,7 @@ COMMENT ON COLUMN public.shop_titles.description IS 'Description of the title.';
 --
 
 CREATE TABLE public.userbase (
-                                 device_id character varying(10) NOT NULL,
+                                 device_id bigint NOT NULL,
                                  device_token character varying(21) NOT NULL,
                                  device_token_hashed character varying(32) NOT NULL,
                                  account_id integer NOT NULL,
@@ -78,30 +78,6 @@ ALTER TABLE public.userbase OWNER TO wiisoap;
 --
 
 COMMENT ON COLUMN public.userbase.device_code IS 'Also known as the console''s friend code.';
-
-
---
--- Data for Name: owned_titles; Type: TABLE DATA; Schema: public; Owner: wiisoap
---
-
-COPY public.owned_titles (account_id, ticket_id, title_id, revocation_date) FROM stdin;
-\.
-
-
---
--- Data for Name: shop_titles; Type: TABLE DATA; Schema: public; Owner: wiisoap
---
-
-COPY public.shop_titles (title_id, version, description) FROM stdin;
-\.
-
-
---
--- Data for Name: userbase; Type: TABLE DATA; Schema: public; Owner: wiisoap
---
-
-COPY public.userbase (device_id, device_token, device_token_hashed, account_id, region, country, language, serial_number, device_code) FROM stdin;
-\.
 
 
 --

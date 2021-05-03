@@ -18,14 +18,13 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/xml"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
 )
 
 const (
@@ -34,8 +33,9 @@ const (
 	SharedChallenge = "NintyWhyPls"
 )
 
-var db *sql.DB
 var baseUrl string
+var pool *pgxpool.Pool
+var ctx = context.Background()
 
 // checkError makes error handling not as ugly and inefficient.
 func checkError(err error) {
@@ -51,33 +51,27 @@ func main() {
 	// Check the Config.
 	ioconfig, err := ioutil.ReadFile("./config.xml")
 	checkError(err)
-	CON := Config{}
-	err = xml.Unmarshal(ioconfig, &CON)
+	readConfig := Config{}
+	err = xml.Unmarshal(ioconfig, &readConfig)
 	checkError(err)
 
 	fmt.Println("[i] Initializing core...")
 
 	// Start SQL.
-	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", CON.SQLUser, CON.SQLPass, CON.SQLAddress, CON.SQLDB))
+	dbString := fmt.Sprintf("postgres://%s:%s@%s/%s", readConfig.SQLUser, readConfig.SQLPass, readConfig.SQLAddress, readConfig.SQLDB)
+	dbConf, err := pgxpool.ParseConfig(dbString)
+	checkError(err)
+	pool, err = pgxpool.ConnectConfig(ctx, dbConf)
 	checkError(err)
 
-	// Close SQL after everything else is done.
-	defer db.Close()
-	err = db.Ping()
+	// Ensure this PostgreSQL connection is valid.
+	defer pool.Close()
 	checkError(err)
-	db.SetConnMaxLifetime(time.Minute * 3)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
 
-	baseUrl = CON.BaseURL
-
-	// Initialize handlers.
-	ecsInitialize()
-	iasInitialize()
-	routeInitialize()
+	baseUrl = readConfig.BaseURL
 
 	// Start the HTTP server.
-	fmt.Printf("Starting HTTP connection (%s)...\nNot using the usual port for HTTP?\nBe sure to use a proxy, otherwise the Wii can't connect!\n", CON.Address)
+	fmt.Printf("Starting HTTP connection (%s)...\nNot using the usual port for HTTP?\nBe sure to use a proxy, otherwise the Wii can't connect!\n", readConfig.Address)
 
 	r := NewRoute()
 	ecs := r.HandleGroup("ecs")
@@ -99,7 +93,7 @@ func main() {
 		ias.Unauthenticated("Register", register)
 		ias.Authenticated("Unregister", unregister)
 	}
-	log.Fatal(http.ListenAndServe(CON.Address, r.Handle()))
+	log.Fatal(http.ListenAndServe(readConfig.Address, r.Handle()))
 
 	// From here on out, all special cool things should go into their respective handler function.
 }
