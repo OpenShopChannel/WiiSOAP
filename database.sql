@@ -1,91 +1,184 @@
-/*
-
-< Database Template File >
-This file automatically adds the default database and tables.
-WiiSOAP uses MySQL.
-
-This SQL File does not guarantee functionality as WiiSOAP is still in early development statements.
-It is suggested that you should hold off from using WiiSOAP unless you are confident that you know what you are doing.
-Follow and practice proper security practices before handling user data.
-
-*/
-
--- Generation Time: Jan 23, 2019 at 12:40 PM
--- Server version: 10.5.5-MariaDB
--- PHP Version: 7.3.0
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
 --
--- Table structure for table `shop_titles`
+-- PostgreSQL database dump
 --
 
-DROP TABLE IF EXISTS `shop_titles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `shop_titles` (
-                               `title_id` varchar(16) NOT NULL,
-                               `version` int(11) NOT NULL,
-                               `description` mediumtext DEFAULT 'yada yada',
-                               PRIMARY KEY (`title_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-/*!40101 SET character_set_client = @saved_cs_client */;
+-- Dumped from database version 13.2
+-- Dumped by pg_dump version 13.2
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
 
 --
--- Table structure for table `owned_titles`
+-- Name: owned_titles; Type: TABLE; Schema: public; Owner: wiisoap
 --
 
-DROP TABLE IF EXISTS `owned_titles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `owned_titles` (
-                                `account_id` varchar(9) NOT NULL,
-                                `ticket_id` int(16) NOT NULL,
-                                `title_id` varchar(16) NOT NULL,
-                                `revocation_date` int(11) NOT NULL DEFAULT 0,
-                                KEY `match_shop_title_metadata` (`title_id`),
-                                KEY `order_account_ids` (`account_id`),
-                                CONSTRAINT `match_shop_title_metadata` FOREIGN KEY (`title_id`) REFERENCES `shop_titles` (`title_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-/*!40101 SET character_set_client = @saved_cs_client */;
+CREATE TABLE public.owned_titles (
+                                     account_id integer NOT NULL,
+                                     ticket_id character varying(16) NOT NULL,
+                                     title_id character varying(16) NOT NULL,
+                                     revocation_date timestamp without time zone
+);
+
+
+ALTER TABLE public.owned_titles OWNER TO wiisoap;
 
 --
--- Table structure for table `userbase`
+-- Name: shop_titles; Type: TABLE; Schema: public; Owner: wiisoap
 --
 
-DROP TABLE IF EXISTS `userbase`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `userbase` (
-                            `DeviceId` varchar(10) NOT NULL,
-                            `DeviceTokenUnhashed` varchar(21) NOT NULL COMMENT 'Sadly, sometimes we must return the device token in plaintext.',
-                            `DeviceToken` varchar(32) NOT NULL COMMENT 'The MD5 of the device token is sent for most requests. We store it to avoid wasting compute time.',
-                            `AccountId` varchar(9) NOT NULL,
-                            `Region` varchar(3) NOT NULL,
-                            `Country` varchar(2) NOT NULL,
-                            `Language` varchar(2) NOT NULL,
-                            `SerialNo` varchar(11) NOT NULL,
-                            `DeviceCode` varchar(16) NOT NULL,
-                            PRIMARY KEY (`AccountId`),
-                            UNIQUE KEY `AccountId` (`AccountId`),
-                            UNIQUE KEY `userbase_DeviceId_uindex` (`DeviceId`),
-                            UNIQUE KEY `userbase_DeviceToken_uindex` (`DeviceToken`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+CREATE TABLE public.shop_titles (
+                                    title_id character varying(16) NOT NULL,
+                                    version integer,
+                                    description text
+);
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+ALTER TABLE public.shop_titles OWNER TO wiisoap;
+
+--
+-- Name: COLUMN shop_titles.description; Type: COMMENT; Schema: public; Owner: wiisoap
+--
+
+COMMENT ON COLUMN public.shop_titles.description IS 'Description of the title.';
+
+
+--
+-- Name: userbase; Type: TABLE; Schema: public; Owner: wiisoap
+--
+
+CREATE TABLE public.userbase (
+                                 device_id character varying(10) NOT NULL,
+                                 device_token character varying(21) NOT NULL,
+                                 device_token_hashed character varying(32) NOT NULL,
+                                 account_id integer NOT NULL,
+                                 region character varying(3),
+                                 country character varying(2),
+                                 language character varying(2),
+                                 serial_number character varying(11),
+                                 device_code bigint
+);
+
+
+ALTER TABLE public.userbase OWNER TO wiisoap;
+
+--
+-- Name: COLUMN userbase.device_code; Type: COMMENT; Schema: public; Owner: wiisoap
+--
+
+COMMENT ON COLUMN public.userbase.device_code IS 'Also known as the console''s friend code.';
+
+
+--
+-- Data for Name: owned_titles; Type: TABLE DATA; Schema: public; Owner: wiisoap
+--
+
+COPY public.owned_titles (account_id, ticket_id, title_id, revocation_date) FROM stdin;
+\.
+
+
+--
+-- Data for Name: shop_titles; Type: TABLE DATA; Schema: public; Owner: wiisoap
+--
+
+COPY public.shop_titles (title_id, version, description) FROM stdin;
+\.
+
+
+--
+-- Data for Name: userbase; Type: TABLE DATA; Schema: public; Owner: wiisoap
+--
+
+COPY public.userbase (device_id, device_token, device_token_hashed, account_id, region, country, language, serial_number, device_code) FROM stdin;
+\.
+
+
+--
+-- Name: owned_titles owned_titles_pk; Type: CONSTRAINT; Schema: public; Owner: wiisoap
+--
+
+ALTER TABLE ONLY public.owned_titles
+    ADD CONSTRAINT owned_titles_pk PRIMARY KEY (account_id);
+
+
+--
+-- Name: shop_titles shop_titles_pk; Type: CONSTRAINT; Schema: public; Owner: wiisoap
+--
+
+ALTER TABLE ONLY public.shop_titles
+    ADD CONSTRAINT shop_titles_pk PRIMARY KEY (title_id);
+
+
+--
+-- Name: userbase userbase_pk; Type: CONSTRAINT; Schema: public; Owner: wiisoap
+--
+
+ALTER TABLE ONLY public.userbase
+    ADD CONSTRAINT userbase_pk PRIMARY KEY (account_id);
+
+
+--
+-- Name: owned_titles_account_id_uindex; Type: INDEX; Schema: public; Owner: wiisoap
+--
+
+CREATE UNIQUE INDEX owned_titles_account_id_uindex ON public.owned_titles USING btree (account_id);
+
+
+--
+-- Name: shop_titles_title_id_uindex; Type: INDEX; Schema: public; Owner: wiisoap
+--
+
+CREATE UNIQUE INDEX shop_titles_title_id_uindex ON public.shop_titles USING btree (title_id);
+
+
+--
+-- Name: userbase_account_id_uindex; Type: INDEX; Schema: public; Owner: wiisoap
+--
+
+CREATE UNIQUE INDEX userbase_account_id_uindex ON public.userbase USING btree (account_id);
+
+
+--
+-- Name: userbase_device_code_uindex; Type: INDEX; Schema: public; Owner: wiisoap
+--
+
+CREATE UNIQUE INDEX userbase_device_code_uindex ON public.userbase USING btree (device_code);
+
+
+--
+-- Name: userbase_device_token_uindex; Type: INDEX; Schema: public; Owner: wiisoap
+--
+
+CREATE UNIQUE INDEX userbase_device_token_uindex ON public.userbase USING btree (device_token);
+
+
+--
+-- Name: owned_titles match_shop_title_metadata; Type: FK CONSTRAINT; Schema: public; Owner: wiisoap
+--
+
+ALTER TABLE ONLY public.owned_titles
+    ADD CONSTRAINT match_shop_title_metadata FOREIGN KEY (title_id) REFERENCES public.shop_titles(title_id);
+
+
+--
+-- Name: owned_titles order_account_ids; Type: FK CONSTRAINT; Schema: public; Owner: wiisoap
+--
+
+ALTER TABLE ONLY public.owned_titles
+    ADD CONSTRAINT order_account_ids FOREIGN KEY (account_id) REFERENCES public.userbase(account_id);
+
+
+--
+-- PostgreSQL database dump complete
+--
