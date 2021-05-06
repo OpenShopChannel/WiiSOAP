@@ -30,7 +30,7 @@ const (
 
 func checkDeviceStatus(e *Envelope) {
 	e.AddCustomType(Balance{
-		Amount:   2018,
+		Amount:   2147483647,
 		Currency: "POINTS",
 	})
 	e.AddKVNode("ForceSyncTime", "0")
@@ -105,6 +105,21 @@ func purchaseTitle(e *Envelope) {
 	e.AddKVNode("Certs", "00000000")
 	e.AddKVNode("TitleId", "00000000")
 	e.AddKVNode("ETickets", "00000000")
+}
+
+func listPurchaseHistory(e *Envelope) {
+	e.AddCustomType(Transactions{
+		TransactionId: "12345678",
+		Date:          e.Timestamp(),
+		Type:          "SERVICE",
+		TotalPaid:     "7",
+		Currency:      "POINTS",
+		ItemId:        "17",
+		ItemPricing:   "7",
+		Limits:        LimitStruct(DR),
+	})
+
+	e.AddKVNode("ListResultTotalSize", "1")
 }
 
 // genServiceUrl returns a URL with the given service against a configured URL.

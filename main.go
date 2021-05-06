@@ -82,6 +82,7 @@ func main() {
 		ecs.Authenticated("GetETickets", getETickets)
 		ecs.Authenticated("PurchaseTitle", purchaseTitle)
 		ecs.Unauthenticated("GetECConfig", getECConfig)
+		ecs.Authenticated("ListPurchaseHistory", listPurchaseHistory)
 	}
 
 	ias := r.HandleGroup("ias")
