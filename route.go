@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/jackc/pgx/v4"
+	"github.com/logrusorgru/aurora/v3"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -66,7 +66,7 @@ func (r *RoutingGroup) Authenticated(action string, function func(e *Envelope)) 
 
 func (route *Route) Handle() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s via %s", r.Method, r.URL, r.Host)
+		log.Printf("%s %s via %s", aurora.Yellow(r.Method), aurora.Cyan(r.URL), aurora.Cyan(r.Host))
 
 		// Check if there's a header of the type we need.
 		service, actionName := parseAction(r.Header.Get("SOAPAction"))
@@ -79,13 +79,14 @@ func (route *Route) Handle() http.Handler {
 		switch service {
 		case "ecs":
 		case "ias":
+		case "cas":
 			break
 		default:
 			printError(w, "Unsupported service type...")
 			return
 		}
 
-		fmt.Println("[!] Incoming " + strings.ToUpper(service) + " request - handling for " + actionName)
+		debugPrint("[!] Incoming ", aurora.Yellow(strings.ToUpper(service)), " request - handling request ", aurora.Yellow(actionName))
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			printError(w, "Error reading request body...")
@@ -107,7 +108,7 @@ func (route *Route) Handle() http.Handler {
 			return
 		}
 
-		fmt.Println("Received:", string(body))
+		debugPrint("Client sent:\n", aurora.BrightGreen(string(body)))
 
 		// Insert the current action being performed.
 		e, err := NewEnvelope(service, actionName, body)
@@ -139,7 +140,7 @@ func (route *Route) Handle() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Write([]byte(contents))
-		fmt.Println("Response:", contents)
+		debugPrint("Writing response:\n", aurora.BrightCyan(contents))
 	})
 }
 
@@ -173,7 +174,7 @@ func checkAuthentication(e *Envelope) (bool, error) {
 		return false, err
 	} else if err != nil {
 		// We shouldn't encounter other errors.
-		log.Printf("error occurred while checking authentication: %v\n", err)
+		debugPrint("error occurred while checking authentication: %v\n", err)
 		return false, err
 	} else {
 		return true, nil
@@ -196,5 +197,5 @@ func validateTokenFormat(token string) string {
 
 func printError(w http.ResponseWriter, reason string) {
 	http.Error(w, reason, http.StatusInternalServerError)
-	fmt.Println("Failed to handle request: " + reason)
+	debugPrint("Failed to handle request: ", aurora.Red(reason))
 }

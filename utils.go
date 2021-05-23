@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/antchfx/xmlquery"
 	"io"
+	"log"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -179,7 +180,16 @@ func (e *Envelope) becomeXML() (bool, string) {
 	// Non-zero error codes indicate a failure.
 	intendedStatus := e.Body.Response.ErrorCode == 0
 
-	contents, err := xml.Marshal(e)
+	var contents []byte
+	var err error
+
+	// If we're in debug mode, pretty print XML.
+	if isDebug {
+		contents, err = xml.MarshalIndent(e, "", "\t")
+	} else {
+		contents, err = xml.Marshal(e)
+	}
+
 	if err != nil {
 		return false, "an error occurred marshalling XML: " + err.Error()
 	} else {
@@ -247,4 +257,12 @@ func RandString(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func debugPrint(v ...interface{}) {
+	if !isDebug {
+		return
+	}
+
+	log.Print(v...)
 }

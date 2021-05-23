@@ -38,6 +38,8 @@ type Config struct {
 	SQLUser    string `xml:"SQLUser"`
 	SQLPass    string `xml:"SQLPass"`
 	SQLDB      string `xml:"SQLDB"`
+
+	Debug bool `xml:"Debug"`
 }
 
 // Envelope represents the root element of any response, soapenv:Envelope.

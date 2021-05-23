@@ -12,4 +12,8 @@
     <SQLUser>username</SQLUser>
     <SQLPass>password</SQLPass>
     <SQLDB>wiisoap</SQLDB>
+
+    <!-- Set to true to enable response debugging.
+    Can be extremely verbose. -->
+    <Debug>true</Debug>
 </Config>
