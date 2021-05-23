@@ -185,7 +185,7 @@ func (e *Envelope) becomeXML() (bool, string) {
 
 	// If we're in debug mode, pretty print XML.
 	if isDebug {
-		contents, err = xml.MarshalIndent(e, "", "\t")
+		contents, err = xml.MarshalIndent(e, "", "  ")
 	} else {
 		contents, err = xml.Marshal(e)
 	}
