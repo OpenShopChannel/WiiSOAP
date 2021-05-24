@@ -96,6 +96,11 @@ func main() {
 		ias.Unauthenticated("Register", register)
 		ias.Authenticated("Unregister", unregister)
 	}
+
+	cas := r.HandleGroup("cas")
+	{
+		cas.Authenticated("ListItems", listItems)
+	}
 	log.Fatal(http.ListenAndServe(readConfig.Address, r.Handle()))
 
 	// From here on out, all special cool things should go into their respective handler function.

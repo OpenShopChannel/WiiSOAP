@@ -163,3 +163,50 @@ type Tickets struct {
 	MigrateCount int      `xml:"MigrateCount"`
 	MigrateLimit int      `xml:"MigrateLimit"`
 }
+
+// Attributes represents a common structure of the same name.
+type Attributes struct {
+	XMLName xml.Name `xml:"Attributes"`
+	Name    string   `xml:"Name"`
+	Value   string   `xml:"Value"`
+}
+
+// ContentsMetadata describes data about contents within a title.
+type ContentsMetadata struct {
+	XMLName       xml.Name `xml:"Contents"`
+	TitleIncluded bool     `xml:"TitleIncluded"`
+	ContentIndex  int      `xml:"ContentIndex"`
+}
+
+// Price holds the price for a title.
+type Price struct {
+	XMLName  xml.Name `xml:"Price"`
+	Amount   int      `xml:"Amount"`
+	Currency string   `xml:"Currency"`
+}
+
+// Prices describes a common structure for listing prices within a title.
+type Prices struct {
+	ItemId      int `xml:"ItemId"`
+	Price       Price
+	Limits      Limits `xml:"Limits"`
+	LicenseKind string `xml:"LicenseKind"`
+}
+
+// Items allows specifying an overview of a title's contents.
+type Items struct {
+	XMLName    xml.Name         `xml:"Items"`
+	TitleId    string           `xml:"TitleId"`
+	Contents   ContentsMetadata `xml:"Contents"`
+	Attributes []Attributes     `xml:"Attribute,omitempty"`
+	Ratings    Ratings          `xml:"Ratings,omitempty"`
+	Prices     Prices           `xml:"Prices,omitempty"`
+}
+
+// Ratings allows specifying the rating of an item across multiple properties.
+type Ratings struct {
+	XMLName xml.Name `xml:"Ratings"`
+	Name    string   `xml:"Name"`
+	Rating  int      `xml:"Rating"`
+	Age     int      `xml:"Age"`
+}
